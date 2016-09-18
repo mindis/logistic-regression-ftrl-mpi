@@ -20,13 +20,18 @@ class Predict{
     Predict(Load_Data* load_data, int total_num_proc, int my_rank) 
             : data(load_data), nproc(total_num_proc), rank(my_rank){
         pctr = 0.0;
-        MAX_ARRAY_SIZE = 1000;
+        MAX_ARRAY_SIZE = 2000;
         g_all_non_clk = new float[MAX_ARRAY_SIZE];
         g_all_clk = new float[MAX_ARRAY_SIZE];
         g_nclk = new float[MAX_ARRAY_SIZE];
         g_clk = new float[MAX_ARRAY_SIZE];
     }
-    ~Predict(){}
+    ~Predict(){
+        delete[] g_all_non_clk;
+        delete[] g_all_clk;
+        delete[] g_nclk;
+        delete[] g_clk;
+    }
 
     //void predict(std::vector<float> glo_w){
     void predict(float* glo_w){
@@ -98,7 +103,9 @@ class Predict{
                 g_all_clk[i] = g_clk[i];
             }
             for(int i = 1; i < nprocs; i++){
+                std::cout<<"----------------------------------------------"<<std::endl;
                 MPI_Recv(g_nclk, MAX_ARRAY_SIZE, MPI_FLOAT, i, MPI_NON_CLK_TAG, MPI_COMM_WORLD, &status);
+                std::cout<<"=============================================="<<std::endl;
                 MPI_Recv(g_clk, MAX_ARRAY_SIZE, MPI_FLOAT, i, MPI_CLK_TAG, MPI_COMM_WORLD, &status);
                 for(int i = 0; i < MAX_ARRAY_SIZE; i++){
                     g_all_non_clk[i] += g_nclk[i];

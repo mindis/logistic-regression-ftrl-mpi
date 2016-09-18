@@ -34,19 +34,6 @@ class FTRL{
         }
 
         void update(){// only for master node
-            //reduce global gradient
-            for(int j = 0; j < data->glo_fea_dim; j++){//store local gradient to glo_g;
-                glo_g[j] = loc_g[j];
-            }
-            for(int rankid = 1; rankid < num_proc; rankid++){//receive other node`s gradient and store to glo_g;
-                MPI_Recv(loc_g, data->glo_fea_dim, MPI_FLOAT, rankid, 99, MPI_COMM_WORLD, &status);
-                for(int j = 0; j < data->glo_fea_dim; j++){
-                    glo_g[j] += loc_g[j];
-                }
-            }
-            for(int j = 0; j < data->glo_fea_dim; j++){
-                glo_g[j] /= num_proc;
-            }
             //update parameter
             for(int col = 0; col < data->glo_fea_dim; col++){
                 //the first update sigma, z, n
@@ -93,10 +80,11 @@ class FTRL{
             for(int epoch = 0; epoch < epochs; epoch++){
                 row = 0;
                 int batches = 0;
-                if(epoch % 5 == 0  || batches % 1000 == 0){
+                if(epoch % 1 == 0  || batches % 1000 == 0){
                     std::cout<<"rank "<<rank<<" epoch "<<epoch<<" batch "<<batches<<std::endl;
                     pred->run(loc_w);
                 }
+                std::cout<<"pred->run correct!" << std::endl;
                 if( (batches == batch_num_min - 1) ) break;
                 while(row < data->fea_matrix.size()){
                     batch_gradient_calculate(row);
@@ -108,6 +96,18 @@ class FTRL{
                         MPI_Send(loc_g, data->glo_fea_dim, MPI_FLOAT, 0, 99, MPI_COMM_WORLD);
                     }
                     else if(rank == 0){//rank 0 is master node
+                        for(int j = 0; j < data->glo_fea_dim; j++){//store local gradient to glo_g;
+                            glo_g[j] = loc_g[j];
+                        }
+                        for(int r = 1; r < num_proc; r++){//receive other node`s gradient and store to glo_g;
+                            MPI_Recv(loc_g, data->glo_fea_dim, MPI_FLOAT, r, 99, MPI_COMM_WORLD, &status);
+                            for(int j = 0; j < data->glo_fea_dim; j++){
+                                glo_g[j] += loc_g[j];
+                            }
+                        }
+                        for(int j = 0; j < data->glo_fea_dim; j++){
+                            glo_g[j] /= num_proc;
+                        }
                         update();
                     }
                     //sync w of all nodes in cluster
