@@ -44,10 +44,7 @@ int main(int argc,char* argv[]){
         ftrl.lambda1 = lambda1;
         ftrl.lambda2 = lambda2;
         ftrl.ftrl();
-        for(int j = 0; j < train_data.glo_fea_dim; j++){
-	        //if(ftrl.loc_w[j] != 0)std::cout<<"w["<< j << "]: "<<ftrl.loc_w[j]<<std::endl;
-        }
-        std::cout<<"rank "<<rank<<" train finished! "<<processor_name<<std::endl;
+        std::cout<<"rank "<<rank<<" train finish!"<<processor_name<<std::endl;
         predict.run(ftrl.loc_w);
     }
 

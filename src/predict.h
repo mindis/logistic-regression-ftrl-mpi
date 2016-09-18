@@ -6,9 +6,6 @@
 #include <string.h>
 #include <math.h>
 
-#define MPI_NON_CLK_TAG 99
-#define MPI_CLK_TAG 199
-
 typedef struct{
     float clk;
     float nclk;
@@ -39,9 +36,9 @@ class Predict{
         for(int i = 0; i < data->fea_matrix.size(); i++) {
 	        float x = 0.0;
             for(int j = 0; j < data->fea_matrix[i].size(); j++) {
-                long int idx = data->fea_matrix[i][j].idx;
-                int val = data->fea_matrix[i][j].val;
-                x += glo_w[idx] * val;
+                long index = data->fea_matrix[i][j].idx;
+                int value = data->fea_matrix[i][j].val;
+                x += glo_w[index] * value;
             }
 
             if(x < -30){
@@ -64,13 +61,13 @@ class Predict{
     }
 
     void merge_clk(){//merge local node`s clk
-        memset(g_nclk, 0, MAX_ARRAY_SIZE * sizeof(float));
-        memset(g_clk, 0, MAX_ARRAY_SIZE * sizeof(float));
+        memset(g_nclk, 0.0, MAX_ARRAY_SIZE * sizeof(float));
+        memset(g_clk, 0.0, MAX_ARRAY_SIZE * sizeof(float));
         int cnt = result_list.size();
         for(int i = 0; i < cnt; i++){
-            int idx = result_list[i].idx;
-            g_nclk[idx] += result_list[i].nclk;
-            g_clk[idx] += result_list[i].clk;
+            long index = result_list[i].idx;
+            g_nclk[index] += result_list[i].nclk;
+            g_clk[index] += result_list[i].clk;
         }
     }
 
@@ -79,7 +76,6 @@ class Predict{
             double nclk_sum = 0.0;
             double old_clk_sum = 0.0;
             double clksum_multi_nclksum = 0.0;
-            double auc = 0.0;
             auc_res = 0.0;
             for(int i = 0; i < MAX_ARRAY_SIZE; i++){
                     old_clk_sum = clk_sum;
@@ -94,8 +90,8 @@ class Predict{
     int mpi_auc(int nprocs, int rank, double& auc){
         MPI_Status status;
         if(rank != MASTER_ID){
-            MPI_Send(g_nclk, MAX_ARRAY_SIZE, MPI_FLOAT, MASTER_ID, MPI_NON_CLK_TAG, MPI_COMM_WORLD);
-            MPI_Send(g_clk, MAX_ARRAY_SIZE, MPI_FLOAT, MASTER_ID, MPI_CLK_TAG, MPI_COMM_WORLD);
+            MPI_Send(g_nclk, MAX_ARRAY_SIZE, MPI_FLOAT, MASTER_ID, 199, MPI_COMM_WORLD);
+            MPI_Send(g_clk, MAX_ARRAY_SIZE, MPI_FLOAT, MASTER_ID, 1999, MPI_COMM_WORLD);
         }
         else if(rank == MASTER_ID){
             for(int i = 0; i < MAX_ARRAY_SIZE; i++){
@@ -103,10 +99,8 @@ class Predict{
                 g_all_clk[i] = g_clk[i];
             }
             for(int i = 1; i < nprocs; i++){
-                std::cout<<"----------------------------------------------"<<std::endl;
-                MPI_Recv(g_nclk, MAX_ARRAY_SIZE, MPI_FLOAT, i, MPI_NON_CLK_TAG, MPI_COMM_WORLD, &status);
-                std::cout<<"=============================================="<<std::endl;
-                MPI_Recv(g_clk, MAX_ARRAY_SIZE, MPI_FLOAT, i, MPI_CLK_TAG, MPI_COMM_WORLD, &status);
+                MPI_Recv(g_nclk, MAX_ARRAY_SIZE, MPI_FLOAT, i, 199, MPI_COMM_WORLD, &status);
+                MPI_Recv(g_clk, MAX_ARRAY_SIZE, MPI_FLOAT, i, 1999, MPI_COMM_WORLD, &status);
                 for(int i = 0; i < MAX_ARRAY_SIZE; i++){
                     g_all_non_clk[i] += g_nclk[i];
                     g_all_clk[i] += g_clk[i];
@@ -119,10 +113,6 @@ class Predict{
     //void run(std::vector<float> w){
     void run(float* w){
         predict(w);
-        double total_clk = 0.0;
-        double total_nclk = 0.0;
-        double auc = 0.0;
-        double total_auc = 0.0;
 
         merge_clk();
         mpi_auc(nproc, rank, auc);
@@ -130,19 +120,19 @@ class Predict{
         if(MASTER_ID == rank){
             printf("AUC = %lf\n", auc);
         }
-
     }
 
     private:
     Load_Data* data;
     std::vector<clkinfo> result_list;
     int MAX_ARRAY_SIZE;
+    double auc = 0.0;
     float* g_all_non_clk;
     float* g_all_clk;
     float* g_nclk;
     float* g_clk;
-    double g_total_clk;
-    double g_total_nclk;
+    float g_total_clk;
+    float g_total_nclk;
 
     float pctr;
     int nproc; // total num of process in MPI comm world

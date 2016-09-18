@@ -14,14 +14,13 @@ class FTRL{
         ~FTRL(){}
 
         void init(){
-            row = 0;
-
             loc_w = new float[data->glo_fea_dim]();
             loc_g = new float[data->glo_fea_dim]();
             glo_g = new float[data->glo_fea_dim]();
-            loc_z = new float[data->glo_fea_dim]();
+
             loc_sigma = new float[data->glo_fea_dim]();
             loc_n = new float[data->glo_fea_dim]();
+            loc_z = new float[data->glo_fea_dim]();
         }
 
         float sigmoid(float x){
@@ -34,12 +33,11 @@ class FTRL{
         }
 
         void update(){// only for master node
-            //update parameter
             for(int col = 0; col < data->glo_fea_dim; col++){
                 //the first update sigma, z, n
                 loc_sigma[col] = ( sqrt (loc_n[col] + glo_g[col] * glo_g[col]) - sqrt(loc_n[col]) ) / alpha;
-                loc_z[col] += glo_g[col] - loc_sigma[col] * loc_w[col];
                 loc_n[col] += glo_g[col] * glo_g[col];
+                loc_z[col] += glo_g[col] - loc_sigma[col] * loc_w[col];
                 //the secondary update w
                 if(abs(loc_z[col]) <= lambda1){
                     loc_w[col] = 0.0;
@@ -77,16 +75,13 @@ class FTRL{
             int batch_num = data->fea_matrix.size() / batch_size;
             int batch_num_min = 0;
             MPI_Allreduce(&batch_num, &batch_num_min, 1, MPI_INT, MPI_MIN, MPI_COMM_WORLD);
+            std::cout<<"epochs = "<<epochs<<" batch_num_min = "<<batch_num_min<<std::endl;
             for(int epoch = 0; epoch < epochs; epoch++){
-                row = 0;
-                int batches = 0;
-                if(epoch % 1 == 0  || batches % 1000 == 0){
-                    std::cout<<"rank "<<rank<<" epoch "<<epoch<<" batch "<<batches<<std::endl;
-                    pred->run(loc_w);
-                }
-                std::cout<<"pred->run correct!" << std::endl;
-                if( (batches == batch_num_min - 1) ) break;
+                int row = 0, batches = 0;
+                if(rank == 0) std::cout<<"epoch "<<epoch;
+                pred->run(loc_w);
                 while(row < data->fea_matrix.size()){
+                    if( (batches == batch_num_min - 1) ) break;
                     batch_gradient_calculate(row);
                     for(int col = 0; col < data->glo_fea_dim; col++){
                         loc_g[col] /= batch_size;
@@ -120,8 +115,8 @@ class FTRL{
                         MPI_Recv(loc_w, data->glo_fea_dim, MPI_FLOAT, 0, 999, MPI_COMM_WORLD, &status);
                     }
                     MPI_Barrier(MPI_COMM_WORLD);//will it make the procedure slowly? is it necessary?
+                    batches++;
                 }//end row while
-                batches++;
             }//end epoch for
         }//end ftrl
 
@@ -140,8 +135,6 @@ class FTRL{
         Load_Data* data;
         Predict* pred;
         
-        int row;
-
         float* loc_g;
         float* glo_g;
         float* loc_z;
