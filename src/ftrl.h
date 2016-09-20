@@ -70,6 +70,23 @@ class FTRL{
                 row++;
             }//end for
         }
+         
+        void save_model(int epoch){
+            char buffer[1024];
+            snprintf(buffer, 1024, "%d", epoch);
+            std::string filename = buffer;
+            std::ofstream md;
+            md.open("./model/model_epoch" + filename + ".txt");
+            if(!md.is_open()){
+                std::cout<<"open file error: "<< std::endl;
+            }
+            float wi;
+            for(int j = 0; j < data->glo_fea_dim; j++){
+                wi = loc_w[j];
+                md<< j << "\t" <<wi<<std::endl;
+            }
+            md.close();
+        }
 
         void ftrl(){
             int batch_num = data->fea_matrix.size() / batch_size;
@@ -78,8 +95,9 @@ class FTRL{
             std::cout<<"epochs = "<<epochs<<" batch_num_min = "<<batch_num_min<<std::endl;
             for(int epoch = 0; epoch < epochs; epoch++){
                 int row = 0, batches = 0;
-                if(rank == 0) std::cout<<"epoch "<<epoch;
+                std::cout<<"epoch "<<epoch<<" ";
                 pred->run(loc_w);
+                if(rank == 0 && (epoch+1) % 20 == 0) save_model(epoch);
                 while(row < data->fea_matrix.size()){
                     if( (batches == batch_num_min - 1) ) break;
                     batch_gradient_calculate(row);
