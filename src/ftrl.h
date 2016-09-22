@@ -56,16 +56,19 @@ class FTRL{
             int index = 0; float value = 0.0; float pctr = 0;
             for(int line = 0; line < batch_size; line++){
                 float wx = bias;
-                for(int col = 0; col < data->fea_matrix[row].size(); col++){//for one instance
+                int ins_seg_num = data->fea_matrix[row].size();
+                for(int col = 0; col < ins_seg_num; col++){//for one instance
                     index = data->fea_matrix[row][col].idx;
                     value = data->fea_matrix[row][col].val;
                     wx += loc_w[index] * value;
                 }
                 pctr = sigmoid(wx);
-                for(int col = 0; col < data->fea_matrix[row].size(); col++){
+
+                float delta = pctr - data->label[row];
+                for(int col = 0; col < ins_seg_num; col++){
                     index = data->fea_matrix[row][col].idx;
                     value = data->fea_matrix[row][col].val;
-                    loc_g[index] += (pctr - data->label[row]) * value;
+                    loc_g[index] += delta * value;
                 }
                 row++;
             }//end for

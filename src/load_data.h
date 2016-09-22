@@ -59,7 +59,7 @@ public:
                 //while(sscanf(pline, "%ld:%lf%n", &index, &value, &nchar) >= 2){
                     pline += nchar;
                     sf.idx = index;
-                    if(index+1 > loc_fea_dim) loc_fea_dim = index+1;
+                    if(index > loc_fea_dim) loc_fea_dim = index;
                     sf.val = value;
                     key_val.push_back(sf);
                 }
@@ -72,12 +72,11 @@ public:
         else if(rank == 0){ 
             for(int i = 1; i < nproc; i++){
                 MPI_Recv(&loc_fea_dim, 1, MPI_LONG, i, 90, MPI_COMM_WORLD, &status);
-                if(loc_fea_dim > glo_fea_dim) glo_fea_dim = loc_fea_dim;
+                if(loc_fea_dim >= glo_fea_dim) glo_fea_dim = loc_fea_dim + 1;
             }
         }
         MPI_Bcast(&glo_fea_dim, 1, MPI_LONG, 0, MPI_COMM_WORLD);//must be in all processes code;
     }
-    long int loc_ins_num = 0;
 private:
 };
 #endif
