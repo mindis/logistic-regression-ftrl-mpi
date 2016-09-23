@@ -7,11 +7,11 @@ LIBRARYPATH = -L/usr/local/lib
 LIBRARY = -lpthread -lm
 CPP_tag = -std=gnu++11
 
-train: main.o
-	mpicxx $(CPP_tag) -o train main.o $(LIBRARYPATH) $(LIBRARY)
+lr_ftrl_mpi: main.o
+	mpicxx $(CPP_tag) -o lr_ftrl_mpi main.o $(LIBRARYPATH) $(LIBRARY)
 
 main.o: src/main.cpp
 	mpicxx $(CPP_tag) $(INCLUDEPATH) -c src/main.cpp
 
 clean:
-	rm -f *~ train predict train_ut *.o
+	rm -f *~ lr_ftrl_mpi predict train_ut *.o
