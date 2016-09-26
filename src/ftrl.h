@@ -4,19 +4,20 @@
 #include "predict.h"
 #include "mpi.h"
 #include <math.h>
+#include <cblas.h>
 
 class FTRL{
     public:
         FTRL(Load_Data* load_data, Predict* predict, int total_num_proc, int my_rank) 
-                        : data(load_data), pred(predict), num_proc(total_num_proc), rank(my_rank){
-                                init();
+            : data(load_data), pred(predict), num_proc(total_num_proc), rank(my_rank){
+            init();
         }
         ~FTRL(){}
 
         void init(){
             loc_w = new float[data->glo_fea_dim]();
-            loc_g = new float[data->glo_fea_dim]();
-            glo_g = new float[data->glo_fea_dim]();
+            loc_g = new double[data->glo_fea_dim]();
+            glo_g = new double[data->glo_fea_dim]();
 
             loc_sigma = new float[data->glo_fea_dim]();
             loc_n = new float[data->glo_fea_dim]();
@@ -63,7 +64,6 @@ class FTRL{
                     wx += loc_w[index] * value;
                 }
                 pctr = sigmoid(wx);
-
                 float delta = pctr - data->label[row];
                 for(int col = 0; col < ins_seg_num; col++){
                     index = data->fea_matrix[row][col].idx;
@@ -104,26 +104,17 @@ class FTRL{
                 while(row < data->fea_matrix.size()){
                     if( (batches == batch_num_min - 1) ) break;
                     batch_gradient_calculate(row);
-                    for(int col = 0; col < data->glo_fea_dim; col++){
-                        loc_g[col] /= batch_size;
-                    }
-
+                    cblas_dscal(data->glo_fea_dim, 1.0/batch_size, loc_g, 1);
                     if(rank != 0){//slave nodes send gradient to master node;
                         MPI_Send(loc_g, data->glo_fea_dim, MPI_FLOAT, 0, 99, MPI_COMM_WORLD);
                     }
                     else if(rank == 0){//rank 0 is master node
-                        for(int j = 0; j < data->glo_fea_dim; j++){//store local gradient to glo_g;
-                            glo_g[j] = loc_g[j];
-                        }
+                        cblas_dcopy(data->glo_fea_dim, loc_g, 1, glo_g, 1);
                         for(int r = 1; r < num_proc; r++){//receive other node`s gradient and store to glo_g;
                             MPI_Recv(loc_g, data->glo_fea_dim, MPI_FLOAT, r, 99, MPI_COMM_WORLD, &status);
-                            for(int j = 0; j < data->glo_fea_dim; j++){
-                                glo_g[j] += loc_g[j];
-                            }
+                            cblas_daxpy(data->glo_fea_dim, 1, loc_g, 1, glo_g, 1);
                         }
-                        for(int j = 0; j < data->glo_fea_dim; j++){
-                            glo_g[j] /= num_proc;
-                        }
+                        cblas_dscal(data->glo_fea_dim, 1.0/num_proc, glo_g, 1);
                         update();
                     }
                     //sync w of all nodes in cluster
@@ -156,8 +147,8 @@ class FTRL{
         Load_Data* data;
         Predict* pred;
         
-        float* loc_g;
-        float* glo_g;
+        double* loc_g;
+        double* glo_g;
         float* loc_z;
         float* loc_sigma;
         float* loc_n;
